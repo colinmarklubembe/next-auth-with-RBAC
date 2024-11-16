@@ -1,7 +1,9 @@
 import type { NextAuthOptions, DefaultSession } from "next-auth";
 import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
-// import CredentialsProvider from "next-auth/providers/credentials";
+import CredentialsProvider from "next-auth/providers/credentials";
+import User from "@/app/(models)/User";
+import bcrypt from "bcrypt";
 
 declare module "next-auth" {
   interface User {
@@ -53,6 +55,41 @@ export const options: NextAuthOptions = {
       },
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+    CredentialsProvider({
+      name: "Credentials",
+      credentials: {
+        email: { label: "Email", type: "text", placeholder: "jsmith" },
+        password: {
+          label: "Password",
+          type: "password",
+          placeholder: "password",
+        },
+      },
+      async authorize(credentials) {
+        try {
+          if (!credentials) {
+            return null;
+          }
+
+          const user = await User.findOne({ email: credentials.email });
+
+          const hashedPassword = await bcrypt.compare(
+            credentials.password,
+            user?.password
+          );
+
+          if (user && hashedPassword) {
+            user["role"] = "unverified user";
+
+            return user;
+          }
+        } catch (error) {
+          console.log("Error", error);
+          return null;
+        }
+        return null;
+      },
     }),
   ],
   callbacks: {
