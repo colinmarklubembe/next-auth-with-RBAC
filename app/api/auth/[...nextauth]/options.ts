@@ -1,50 +1,68 @@
-// import NextAuth from "next-auth";
-// import GitHubProvider from "next-auth/providers/github";
-// import GoogleProvider from "next-auth/providers/google";
+import type { NextAuthOptions, DefaultSession } from "next-auth";
+import GitHubProvider from "next-auth/providers/github";
+import GoogleProvider from "next-auth/providers/google";
+// import CredentialsProvider from "next-auth/providers/credentials";
 
-// export const authOptions = {
-//   providers: [
-//     GitHubProvider({
-//       clientId: process.env.GITHUB_CLIENT_ID!,
-//       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-//       profile(profile) {
-//         console.log("GitHub Profile: ", profile);
+declare module "next-auth" {
+  interface User {
+    role?: string;
+  }
 
-//         let userRole = "GitHub User";
-//         if (profile?.email === "colinlubembe68@gmail.com") {
-//           userRole = "admin";
-//         }
+  interface Session {
+    user: {
+      role?: string;
+    } & DefaultSession["user"];
+  }
+}
 
-//         return {
-//           id: profile.id,
-//           name: profile.name,
-//           email: profile.email,
-//           image: profile.avatar_url,
-//           role: userRole,
-//         };
-//       },
-//     }),
-//     GoogleProvider({
-//       clientId: process.env.GOOGLE_CLIENT_ID!,
-//       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-//       profile(profile) {
-//         console.log("Google Profile: ", profile);
+export const options: NextAuthOptions = {
+  providers: [
+    GitHubProvider({
+      profile(profile) {
+        console.log("Profile Github", profile);
 
-//         let userRole = "Google User";
-//         if (profile?.email === "colinlubembe68@gmail.com") {
-//           userRole = "admin";
-//         }
+        let userRole = "Github User";
 
-//         return {
-//           id: profile.sub,
-//           name: profile.name,
-//           email: profile.email,
-//           image: profile.picture,
-//           role: userRole,
-//         };
-//       },
-//     }),
-//   ],
-// };
+        if (profile?.email === "colinlubembe68@gmail.com") {
+          userRole = "admin";
+        }
 
-// export default NextAuth(authOptions);
+        return {
+          ...profile,
+          role: userRole,
+        };
+      },
+      clientId: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+    }),
+    GoogleProvider({
+      profile(profile) {
+        console.log("Profile Google", profile);
+
+        let userRole = "Google User";
+
+        if (profile?.email === "colinlubembe68@outlook.com") {
+          userRole = "admin";
+        }
+
+        return {
+          ...profile,
+          id: profile.sub,
+          role: userRole,
+        };
+      },
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+  ],
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) token.role = user.role;
+      return token;
+    },
+    async session({ session, token }) {
+      if (session?.user) session.user.role = token.role as string | undefined;
+      return session;
+    },
+  },
+};
